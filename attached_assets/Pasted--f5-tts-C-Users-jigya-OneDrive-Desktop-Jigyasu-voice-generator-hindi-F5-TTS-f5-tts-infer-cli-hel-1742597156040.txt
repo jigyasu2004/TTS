@@ -1,0 +1,42 @@
+(f5-tts) C:\Users\jigya\OneDrive\Desktop\Jigyasu\voice generator\hindi\F5-TTS>f5-tts_infer-cli --help
+usage: python3 infer-cli.py [-h] [-c CONFIG] [-m MODEL] [-p CKPT_FILE] [-v VOCAB_FILE] [-r REF_AUDIO] [-s REF_TEXT]
+                            [-t GEN_TEXT] [-f GEN_FILE] [-o OUTPUT_DIR] [-w OUTPUT_FILE]
+                            [--remove_silence REMOVE_SILENCE] [--vocoder_name {vocos,bigvgan}]
+                            [--load_vocoder_from_local] [--speed SPEED] [--nfe NFE]
+
+Commandline interface for E2/F5 TTS with Advanced Batch Processing.
+
+options:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Configuration file. Default=infer/examples/basic/basic.toml
+  -m MODEL, --model MODEL
+                        F5-TTS | F5-TTS-small | E2-TTS
+  -p CKPT_FILE, --ckpt_file CKPT_FILE
+                        The Checkpoint .pt
+  -v VOCAB_FILE, --vocab_file VOCAB_FILE
+                        The vocab .txt
+  -r REF_AUDIO, --ref_audio REF_AUDIO
+                        Reference audio file < 15 seconds.
+  -s REF_TEXT, --ref_text REF_TEXT
+                        Subtitle for the reference audio.
+  -t GEN_TEXT, --gen_text GEN_TEXT
+                        Text to generate.
+  -f GEN_FILE, --gen_file GEN_FILE
+                        File with text to generate. Ignores --gen_text
+  -o OUTPUT_DIR, --output_dir OUTPUT_DIR
+                        Path to output folder..
+  -w OUTPUT_FILE, --output_file OUTPUT_FILE
+                        Filename of output file..
+  --remove_silence REMOVE_SILENCE
+                        Remove silence.
+  --vocoder_name {vocos,bigvgan}
+                        vocoder name
+  --load_vocoder_from_local
+                        load vocoder from local. Default: ../checkpoints/charactr/vocos-mel-24khz
+  --speed SPEED         Adjust the speed of the audio generation (default: 1.0)
+  --nfe NFE             Set the number of denoising steps (default: 32)
+
+Specify options above to override one or more settings from config.
+
+(f5-tts) C:\Users\jigya\OneDrive\Desktop\Jigyasu\voice generator\hindi\F5-TTS>
