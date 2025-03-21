@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
@@ -13,24 +13,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Waveform } from "@/components/ui/waveform";
 import { AudioPlayer } from "@/components/ui/audio-player";
-import { fileToBase64, isValidAudioFile } from "@/lib/audio-utils";
+import { fileToBase64, isValidAudioFile, createAudioBlobUrl } from "@/lib/audio-utils";
 
 // Define the form schema
 const voiceCloningSchema = z.object({
   language: z.enum(["english", "hindi"]),
-  referenceText: z.string().optional().refine(
-    (text, ctx) => {
-      // Reference text is required for Hindi
-      if (ctx.path[0] === "hindi" && (!text || text.trim() === "")) {
-        return false;
-      }
-      return true;
-    },
-    { message: "Reference text is required for Hindi language" }
-  ),
+  referenceText: z.string().optional(),
   generationText: z.string().min(1, { message: "Text to generate is required" }),
   speed: z.number().min(0.5).max(2).default(1.0),
-});
+}).refine(
+  (data) => {
+    // Reference text is required for Hindi
+    if (data.language === "hindi" && (!data.referenceText || data.referenceText.trim() === "")) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Reference text is required for Hindi language",
+    path: ["referenceText"]
+  }
+);
 
 type VoiceCloningValues = z.infer<typeof voiceCloningSchema>;
 
@@ -38,7 +41,7 @@ export default function VoiceCloning() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioPreviewVisible, setAudioPreviewVisible] = useState(false);
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
-  const [commandPreview, setCommandPreview] = useState("");
+  const [generatedAudioBuffer, setGeneratedAudioBuffer] = useState<ArrayBuffer | null>(null);
   const { toast } = useToast();
 
   // Form setup
@@ -52,34 +55,36 @@ export default function VoiceCloning() {
     }
   });
 
-  // Update command preview
-  useEffect(() => {
-    const values = form.getValues();
-    const model = values.language === "english" ? "F5-TTS" : "F5-TTS-small";
-    const fileName = audioFile ? audioFile.name : "uploaded_audio.wav";
-    const refText = values.referenceText || "\"The content, subtitle or transcription of reference audio.\"";
-    const genText = values.generationText || "\"Some text you want TTS model generate for you.\"";
-    const speed = values.speed;
-    
-    setCommandPreview(
-      `f5-tts_infer-cli --model ${model} --ref_audio "${fileName}" --ref_text ${refText} --gen_text ${genText} --speed ${speed}`
-    );
-  }, [form.watch(), audioFile]);
+  // Watch language change to enforce Hindi validation
+  const selectedLanguage = form.watch("language");
 
   // Handle audio file upload
   const handleFileChange = async (file: File) => {
-    const valid = await isValidAudioFile(file, 15);
-    if (!valid) {
+    try {
+      const valid = await isValidAudioFile(file, 15);
+      if (!valid) {
+        toast({
+          title: "Invalid audio file",
+          description: "Audio must be less than 15 seconds",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setAudioFile(file);
+      setAudioPreviewVisible(true);
+      
       toast({
-        title: "Invalid audio file",
-        description: "Audio must be less than 15 seconds",
+        title: "File Uploaded",
+        description: "Audio file uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Could not process the audio file",
         variant: "destructive",
       });
-      return;
     }
-    
-    setAudioFile(file);
-    setAudioPreviewVisible(true);
   };
 
   // Mutation for voice generation
@@ -94,6 +99,7 @@ export default function VoiceCloning() {
       const blob = new Blob([audioBuffer], { type: 'audio/wav' });
       const url = URL.createObjectURL(blob);
       setGeneratedAudioUrl(url);
+      setGeneratedAudioBuffer(audioBuffer);
       
       toast({
         title: "Voice Generated",
@@ -135,6 +141,28 @@ export default function VoiceCloning() {
   // Reset the generation
   const handleReset = () => {
     setGeneratedAudioUrl(null);
+    setGeneratedAudioBuffer(null);
+  };
+
+  // Download the generated audio
+  const handleDownload = () => {
+    if (!generatedAudioBuffer) return;
+    
+    const blob = new Blob([generatedAudioBuffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `generated_voice_${Date.now()}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Download Started",
+      description: "Your audio file is being downloaded",
+    });
   };
 
   return (
@@ -161,22 +189,22 @@ export default function VoiceCloning() {
                       <FormLabel className="text-gray-200">Select Language</FormLabel>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div 
-                          className={`bg-dark-lighter rounded-lg p-4 relative cursor-pointer border ${field.value === "english" ? "border-[#6C63FF]" : "border-transparent"}`}
+                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "english" ? "border-[#6C63FF]" : "border-gray-800"}`}
                           onClick={() => form.setValue("language", "english")}
                         >
                           <div className="flex items-center">
-                            <span className={`w-4 h-4 mr-2 rounded-full border border-[#6C63FF] flex items-center justify-center`}>
+                            <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
                               <span className={`w-2 h-2 rounded-full ${field.value === "english" ? "bg-[#6C63FF]" : ""}`}></span>
                             </span>
                             English (F5-TTS)
                           </div>
                         </div>
                         <div 
-                          className={`bg-dark-lighter rounded-lg p-4 relative cursor-pointer border ${field.value === "hindi" ? "border-[#6C63FF]" : "border-transparent"}`}
+                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "hindi" ? "border-[#6C63FF]" : "border-gray-800"}`}
                           onClick={() => form.setValue("language", "hindi")}
                         >
                           <div className="flex items-center">
-                            <span className={`w-4 h-4 mr-2 rounded-full border border-[#6C63FF] flex items-center justify-center`}>
+                            <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
                               <span className={`w-2 h-2 rounded-full ${field.value === "hindi" ? "bg-[#6C63FF]" : ""}`}></span>
                             </span>
                             Hindi (F5-TTS-small)
@@ -190,23 +218,28 @@ export default function VoiceCloning() {
               
               {/* Audio Upload */}
               <AnimatedCard>
-                <FileUpload onFileChange={handleFileChange} />
+                <FileUpload 
+                  onFileChange={handleFileChange} 
+                  accept="audio/*"
+                  label="Upload Reference Audio"
+                  sublabel="Upload a clear voice sample (max 15 seconds)"
+                />
                 
                 {audioPreviewVisible && (
                   <div className="mt-4">
-                    <Waveform audioUrl={audioFile ? URL.createObjectURL(audioFile) : undefined} />
+                    <Waveform audioUrl={audioFile ? URL.createObjectURL(audioFile) : undefined} isPlaying={false} />
                     <div className="flex justify-between items-center mt-2">
                       <Button 
                         type="button" 
                         variant="outline" 
                         size="icon" 
-                        className="bg-dark-lighter hover:bg-dark-accent rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+                        className="bg-gray-800 hover:bg-gray-700 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                         </svg>
                       </Button>
-                      <span className="text-sm text-gray-400">Audio uploaded</span>
+                      <span className="text-sm text-gray-400">Reference audio ready</span>
                     </div>
                   </div>
                 )}
@@ -221,14 +254,14 @@ export default function VoiceCloning() {
                     <FormItem>
                       <div className="flex justify-between items-center">
                         <FormLabel className="text-gray-200">Reference Text</FormLabel>
-                        {form.watch("language") === "hindi" && (
-                          <span className="text-sm font-medium text-gray-400">(Required for Hindi)</span>
+                        {selectedLanguage === "hindi" && (
+                          <span className="text-sm font-medium text-red-400">* Required for Hindi</span>
                         )}
                       </div>
                       <FormControl>
                         <Textarea 
                           placeholder="Enter the transcript of your reference audio" 
-                          className="bg-dark-lighter border-dark-accent input-glow focus:border-primary resize-none"
+                          className="bg-gray-900 border-gray-700 focus:border-[#6C63FF] resize-none"
                           rows={3}
                           {...field}
                         />
@@ -252,7 +285,7 @@ export default function VoiceCloning() {
                       <FormControl>
                         <Textarea 
                           placeholder="Enter the text you want to convert to speech" 
-                          className="bg-dark-lighter border-dark-accent input-glow focus:border-primary resize-none"
+                          className="bg-gray-900 border-gray-700 focus:border-[#6C63FF] resize-none"
                           rows={4}
                           {...field}
                         />
@@ -305,52 +338,33 @@ export default function VoiceCloning() {
       ) : (
         <div className="glass-effect rounded-2xl p-6 md:p-8 glow-border mt-10">
           <h2 className="text-2xl font-orbitron font-bold mb-4">Generated Audio</h2>
-          <div className="bg-dark-surface rounded-xl p-5 border border-dark-lighter">
+          <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
             <AudioPlayer audioUrl={generatedAudioUrl} allowDownload onBack={handleReset} />
+            
+            <div className="mt-6 flex justify-center">
+              <Button 
+                onClick={handleDownload}
+                className="bg-gradient-to-r from-[#6C63FF] to-[#00D1FF] text-white font-bold py-3 px-6 rounded-lg transition-all hover:opacity-90"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Audio
+              </Button>
+            </div>
+          </div>
+          
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              className="text-gray-300 border-gray-700 hover:bg-gray-800"
+            >
+              Generate Another
+            </Button>
           </div>
         </div>
       )}
-      
-      {/* Command Preview */}
-      <div className="mt-16 glass-effect rounded-2xl p-6 glow-border">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-orbitron font-bold text-lg">Command Preview</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-[#00D1FF] hover:text-[#6C63FF] transition-colors"
-            onClick={() => {
-              navigator.clipboard.writeText(commandPreview);
-              toast({
-                title: "Copied",
-                description: "Command copied to clipboard",
-              });
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            Copy Command
-          </Button>
-        </div>
-        <div className="bg-dark-surface rounded-lg p-4 font-mono text-sm overflow-x-auto">
-          <code className="text-gray-300">
-            <span className="text-[#00D1FF]">{commandPreview.split(' ')[0]}</span> 
-            {commandPreview.split(' ').slice(1).join(' ').split('--').map((part, index) => {
-              if (index === 0) return ' ';
-              const paramName = part.split(' ')[0];
-              const paramValue = part.substring(paramName.length + 1);
-              return (
-                <span key={index}>
-                  <span className="text-[#6C63FF]">--{paramName}</span> 
-                  {paramValue}
-                </span>
-              );
-            })}
-          </code>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">This is the CLI command that will be executed on our servers.</p>
-      </div>
       
       {/* Loading Overlay */}
       {generateMutation.isPending && (
