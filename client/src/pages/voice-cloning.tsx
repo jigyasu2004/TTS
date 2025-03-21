@@ -57,6 +57,9 @@ export default function VoiceCloning() {
 
   // Watch language change to enforce Hindi validation
   const selectedLanguage = form.watch("language");
+  
+  // Debug language changes
+  console.log("Current language:", selectedLanguage);
 
   // Handle audio file upload
   const handleFileChange = async (file: File) => {
@@ -192,7 +195,12 @@ export default function VoiceCloning() {
                           type="button"
                           className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "english" ? "border-[#6C63FF]" : "border-gray-800"} text-left w-full`}
                           onClick={() => {
-                            form.setValue("language", "english");
+                            field.onChange("english");
+                            form.setValue("language", "english", { 
+                              shouldValidate: true,
+                              shouldDirty: true,
+                              shouldTouch: true 
+                            });
                           }}
                         >
                           <div className="flex items-center">
@@ -206,7 +214,12 @@ export default function VoiceCloning() {
                           type="button"
                           className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "hindi" ? "border-[#6C63FF]" : "border-gray-800"} text-left w-full`}
                           onClick={() => {
-                            form.setValue("language", "hindi");
+                            field.onChange("hindi");
+                            form.setValue("language", "hindi", { 
+                              shouldValidate: true,
+                              shouldDirty: true,
+                              shouldTouch: true 
+                            });
                           }}
                         >
                           <div className="flex items-center">
