@@ -188,9 +188,12 @@ export default function VoiceCloning() {
                     <FormItem>
                       <FormLabel className="text-gray-200">Select Language</FormLabel>
                       <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div 
-                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "english" ? "border-[#6C63FF]" : "border-gray-800"}`}
-                          onClick={() => form.setValue("language", "english")}
+                        <button 
+                          type="button"
+                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "english" ? "border-[#6C63FF]" : "border-gray-800"} text-left w-full`}
+                          onClick={() => {
+                            form.setValue("language", "english");
+                          }}
                         >
                           <div className="flex items-center">
                             <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
@@ -198,10 +201,13 @@ export default function VoiceCloning() {
                             </span>
                             English (F5-TTS)
                           </div>
-                        </div>
-                        <div 
-                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "hindi" ? "border-[#6C63FF]" : "border-gray-800"}`}
-                          onClick={() => form.setValue("language", "hindi")}
+                        </button>
+                        <button 
+                          type="button"
+                          className={`bg-gray-900 rounded-lg p-4 relative cursor-pointer border-2 ${field.value === "hindi" ? "border-[#6C63FF]" : "border-gray-800"} text-left w-full`}
+                          onClick={() => {
+                            form.setValue("language", "hindi");
+                          }}
                         >
                           <div className="flex items-center">
                             <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
@@ -209,7 +215,7 @@ export default function VoiceCloning() {
                             </span>
                             Hindi (F5-TTS-small)
                           </div>
-                        </div>
+                        </button>
                       </div>
                     </FormItem>
                   )}
