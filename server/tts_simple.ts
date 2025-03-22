@@ -20,13 +20,13 @@ router.post('/api/tts/simple', upload.none(), async (req, res) => {
 
         // ... (keep existing validation code) ...
 
-        // Generate paths
+        // Generate paths and prepare parameters
         const langCode = language === 'english' ? 'a' : 'h';
         const voice_filter = voice.split(" ")[0];
         const generationText = gene_Text.replace(/\n/g, " ");
 
         let gender;
-        console.log(voice)
+        console.log(voice);
         if (["heart", "bella", "alpha", "beta"].includes(voice_filter)) {
             gender = 'f';
         } else {
@@ -37,14 +37,14 @@ router.post('/api/tts/simple', upload.none(), async (req, res) => {
         const outputFileName = `${uuidv4()}.wav`;
         outputPath = path.join(__dirname, '../output', outputFileName);
 
-        // Create the full command string for logging
-        const command = `python ./scripts/generate_tts.py --lang ${langCode} ` +
+        // Log the full command for debugging
+        const command = `python ${path.join(__dirname, './scripts/generate_tts.py')} --lang ${langCode} ` +
             `--text "${generationText}" --voice ${voiceCode} ` +
             `--speed ${speed} --output "${outputPath}"`;
 
         console.log('\n[Executing command]:', command);
 
-        // Execute Python script
+        // Spawn the Python process
         const pythonProcess = spawn('python', [
             path.join(__dirname, './scripts/generate_tts.py'),
             '--lang', langCode,
@@ -53,25 +53,27 @@ router.post('/api/tts/simple', upload.none(), async (req, res) => {
             '--speed', speed.toString(),
             '--output', outputPath
         ]);
-        
 
-        // Capture output
-
+        // Variables to accumulate process output (if needed for error reporting)
         let pythonOutput = '';
         let pythonError = '';
 
+        // Stream stdout continuously to the console
         pythonProcess.stdout.on('data', (data) => {
-            pythonOutput += data.toString();
-            console.log(`[Python stdout]: ${data}`);
+            const text = data.toString();
+            pythonOutput += text;
+            process.stdout.write(text);
         });
 
+        // Stream stderr continuously to the console
         pythonProcess.stderr.on('data', (data) => {
-            pythonError += data.toString();
-            console.error(`[Python stderr]: ${data}`);
+            const text = data.toString();
+            pythonError += text;
+            process.stderr.write(text);
         });
 
-        // Wait for process completion
-        const exitCode = await new Promise((resolve) => {
+        // Wait for the process to complete
+        const exitCode: number = await new Promise((resolve) => {
             pythonProcess.on('close', (code) => {
                 console.log(`[Python process] exited with code ${code}`);
                 resolve(code || 0);
@@ -93,7 +95,7 @@ router.post('/api/tts/simple', upload.none(), async (req, res) => {
             throw new Error('Generated audio file not found');
         }
 
-        // Send and clean up
+        // Send the generated file and then clean up
         res.setHeader('Content-Type', 'audio/wav');
         res.sendFile(outputPath, (err) => {
             if (err) console.error('File send error:', err);
@@ -108,12 +110,12 @@ router.post('/api/tts/simple', upload.none(), async (req, res) => {
             outputPath,
             error: error instanceof Error ? error.stack : error
         });
-        
+
         // Cleanup on error
         if (outputPath && fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
         }
-        
+
         const message = error instanceof Error ? error.message : 'Unknown error';
         res.status(500).json({ error: message });
     }

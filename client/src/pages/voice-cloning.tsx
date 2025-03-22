@@ -375,28 +375,28 @@ export default function VoiceCloning() {
 
               
               <div className="bg-gray-800 p-2 rounded flex flex-col gap-2">
-  {/* Generated Text Section */}
-  <div>
-    <h1 className="text-sm font-semibold text-white mb-1">Generated Text</h1>
-    {form.getValues("generationText") ? (
-      <p className="text-gray-300 text-xs">{form.getValues("generationText")}</p>
-    ) : (
-      <p className="text-gray-400 text-xs">No text provided for generation.</p>
-    )}
-  </div>
+                {/* Generated Text Section */}
+                <div>
+                  <h1 className="text-sm font-semibold text-white mb-1">Generated Text</h1>
+                  {form.getValues("generationText") ? (
+                    <p className="text-gray-300 text-xs">{form.getValues("generationText")}</p>
+                  ) : (
+                    <p className="text-gray-400 text-xs">No text provided for generation.</p>
+                  )}
+                </div>
 
-  {/* Reference Audio Section */}
-  <div>
-    <h3 className="text-sm font-semibold text-white mb-1">Reference Audio</h3>
-    {audioFile ? (
-      <div className="h-auto">
-        <AudioPlayer audioUrl={URL.createObjectURL(audioFile)} allowDownload={false} />
-      </div>
-    ) : (
-      <p className="text-gray-400 text-xs">No reference audio uploaded.</p>
-    )}
-  </div>
-</div>
+                {/* Reference Audio Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-white mb-1">Reference Audio</h3>
+                  {audioFile ? (
+                    <div className="h-auto">
+                      <AudioPlayer audioUrl={URL.createObjectURL(audioFile)} allowDownload={false} />
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-xs">No reference audio uploaded.</p>
+                  )}
+                </div>
+              </div>
 
 
 

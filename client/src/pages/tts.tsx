@@ -278,8 +278,8 @@ export default function VoiceCloning() {
             {/* Section to display the text used for generation */}
             {generatedText && (
               <div className="mt-6 p-4 bg-gray-800 rounded-md">
-                <h3 className="text-xl font-bold mb-2 text-white">Text Used for Generation:</h3>
-                <p className="text-gray-300">{generatedText}</p>
+                <h1 className="text-sm font-semibold text-white mb-1">Text Used for Generation:</h1>
+                <p className="text-gray-300 text-xs">{generatedText}</p>
               </div>
             )}
             <div className="mt-6 flex justify-center">
