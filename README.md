@@ -19,3 +19,11 @@ Follow these steps to set up and run the TTS project:
 ```bash
 git clone https://github.com/jigyasu2004/TTS.git
 git clone https://github.com/rumourscape/F5-TTS.git
+cd F5-TTS
+pip install -e .
+cd ..
+pip install -q kokoro>=0.9.2 soundfile
+apt-get -qq -y install espeak-ng > /dev/null 2>&1
+cd TTS
+npm install
+npm run dev
