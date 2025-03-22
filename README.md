@@ -72,10 +72,3 @@ Follow these steps to set up and run the TTS project:
 ```bash
 git clone https://github.com/jigyasu2004/TTS.git
 git clone https://github.com/rumourscape/F5-TTS.git
-cd f5-tts
-pip install -e .
-
-cd ..
-cd TTS
-npm install 
-npm run dev
