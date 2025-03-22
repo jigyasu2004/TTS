@@ -25,8 +25,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </div>
         <nav>
           <ul className="flex space-x-1 md:space-x-4">
-            <li className={`px-3 py-2 rounded-lg transition-all hover:bg-dark-accent ${location === '/' ? 'tab-active' : ''}`}>
-              <Link href="/">
+            <li className={`px-3 py-2 rounded-lg transition-all hover:bg-dark-accent ${location === '/Text-to-Speech' ? 'tab-active' : ''}`}>
+              <Link href="/Text-to-Speech">
                 <a className="font-medium text-sm md:text-base">Text to Speech</a>
               </Link>
             </li>

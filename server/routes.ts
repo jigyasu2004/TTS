@@ -7,6 +7,9 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { TtsService } from "./tts-service";
 
+// Import the new TTS simple route
+import ttsSimpleRoute from "./tts_simple";
+
 // Derive __dirname in ES module scope
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,8 +36,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Extract additional form fields
-      // Your client sends 'model' (either "F5-TTS" or "F5-TTS-small")
-      // and 'gen_text', 'ref_text', and 'speed'
+      // Your client sends 'model' (either "F5-TTS" or "F5-TTS-small"),
+      // 'gen_text', 'ref_text', and 'speed'
       const model = req.body.model;
       if (!model) {
         return res.status(400).json({ error: "Model is required" });
@@ -52,9 +55,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(speed)) {
         return res.status(400).json({ error: "Speed is invalid" });
       }
-
-      // // (Optional) Retrieve reference text if needed
-      // const referenceText = req.body.ref_text || "";
 
       // Call TTS service to process the file (currently copies the file)
       const result = await ttsService.cloneVoice({
@@ -76,6 +76,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "An error occurred during voice cloning" });
     }
   });
+
+  // Register the simple TTS route (/api/tts/simple)
+  app.use(ttsSimpleRoute);
 
   const httpServer = createServer(app);
   return httpServer;
