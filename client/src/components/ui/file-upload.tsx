@@ -12,8 +12,8 @@ export function FileUpload({
   onFileChange,
   accept = "audio/*",
   maxSize = 10 * 1024 * 1024, // 10MB
-  label = "Upload Reference Audio (<15 seconds)",
-  sublabel = "MP3, WAV or OGG file (max. 15 seconds)"
+  label = "Upload Reference Audio",
+  sublabel = "MP3, WAV or OGG file"
 }: FileUploadProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

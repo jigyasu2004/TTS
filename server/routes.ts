@@ -1,83 +1,79 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { TtsService } from "./tts-service";
-import { saveUploadedFile } from "./utils/file-utils";
-import { processVoiceCloning } from "@shared/schema";
 
-// Get current file directory in ESM
+// Derive __dirname in ES module scope
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Configure multer for file uploads
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB max file size
-  },
-});
+// Configure multer to store files in the "uploads" directory
+const upload = multer({ dest: "uploads/" });
 
-// Create a directory for uploads if it doesn't exist
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Create a directory for outputs if it doesn't exist
-const outputsDir = path.join(__dirname, "outputs");
-if (!fs.existsSync(outputsDir)) {
-  fs.mkdirSync(outputsDir, { recursive: true });
+// Ensure that the output directory exists
+const outputDir = path.join(__dirname, "output");
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize TTS service
   const ttsService = new TtsService();
 
-  // API route for voice cloning
-  app.post("/api/tts/clone", async (req, res) => {
+  // API route for voice cloning (multipart/form-data)
+  app.post("/api/tts/clone", upload.single("audio"), async (req, res) => {
     try {
-      const validatedData = processVoiceCloning.parse(req.body);
-      
-      // Decode base64 audio to file
-      const audioFilePath = await saveUploadedFile(
-        validatedData.audioBase64,
-        uploadsDir,
-        "reference_audio.wav"
-      );
-      
-      // Generate a unique output filename
-      const outputFilename = `output_${Date.now()}.wav`;
-      const outputPath = path.join(outputsDir, outputFilename);
-      
-      // Process the voice cloning request
-      const result = await ttsService.cloneVoice({
-        audioFilePath,
-        referenceText: validatedData.referenceText || "",
-        generationText: validatedData.generationText,
-        language: validatedData.language,
-        speed: validatedData.speed,
-        outputPath,
-      });
-      
-      if (!result.success) {
-        return res.status(500).json({ error: result.error });
+      // Ensure the file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
       }
-      
-      // Send the generated audio file
-      res.sendFile(outputPath);
+
+      // Extract additional form fields
+      // Your client sends 'model' (either "F5-TTS" or "F5-TTS-small")
+      // and 'gen_text', 'ref_text', and 'speed'
+      const model = req.body.model;
+      if (!model) {
+        return res.status(400).json({ error: "Model is required" });
+      }
+      // Determine language from the model value
+      const language = model === "F5-TTS" ? "english" : "hindi";
+
+      const referenceText = req.body.ref_text || "";
+
+      const generationText = req.body.gen_text;
+      if (!generationText) {
+        return res.status(400).json({ error: "Generation text is required" });
+      }
+      const speed = parseFloat(req.body.speed);
+      if (isNaN(speed)) {
+        return res.status(400).json({ error: "Speed is invalid" });
+      }
+
+      // // (Optional) Retrieve reference text if needed
+      // const referenceText = req.body.ref_text || "";
+
+      // Call TTS service to process the file (currently copies the file)
+      const result = await ttsService.cloneVoice({
+        audioFilePath: req.file.path,
+        language,
+        referenceText,
+        generationText,
+        speed,
+      });
+
+      if (!result.success || !result.outputPath) {
+        return res.status(500).json({ error: result.error || "Voice cloning failed" });
+      }
+
+      // Return the stored audio file to the client
+      res.sendFile(result.outputPath);
     } catch (error) {
       console.error("Voice cloning error:", error);
-      
-      if (error instanceof Error) {
-        res.status(400).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "An unknown error occurred" });
-      }
+      res.status(500).json({ error: "An error occurred during voice cloning" });
     }
   });
 

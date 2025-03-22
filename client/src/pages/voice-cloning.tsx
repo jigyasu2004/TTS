@@ -64,16 +64,6 @@ export default function VoiceCloning() {
   // Handle audio file upload
   const handleFileChange = async (file: File) => {
     try {
-      const valid = await isValidAudioFile(file, 15);
-      if (!valid) {
-        toast({
-          title: "Invalid audio file",
-          description: "Audio must be less than 15 seconds",
-          variant: "destructive",
-        });
-        return;
-      }
-      
       setAudioFile(file);
       setAudioPreviewVisible(true);
       
@@ -90,12 +80,20 @@ export default function VoiceCloning() {
     }
   };
 
-  // Mutation for voice generation
+  // Mutation for voice generation with improved error handling
   const generateMutation = useMutation({
-    mutationFn: async (data: VoiceCloningValues & { audioBase64: string }) => {
-      const response = await apiRequest("POST", "/api/tts/clone", data);
-      const audioBuffer = await response.arrayBuffer();
-      return audioBuffer;
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/tts/clone', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        throw new Error(errorMessage || "Failed to generate audio");
+      }
+      
+      return response.arrayBuffer();
     },
     onSuccess: (audioBuffer) => {
       // Create a blob URL from the audio buffer
@@ -118,26 +116,29 @@ export default function VoiceCloning() {
     }
   });
 
-  // Handle form submission
+  // Handle form submission with additional parameters inspired by the Gradio backend
   const onSubmit = async (values: VoiceCloningValues) => {
     if (!audioFile) {
-      toast({
-        title: "Missing Audio",
-        description: "Please upload a reference audio file",
-        variant: "destructive",
-      });
+      toast({ title: "Missing Audio", description: "Please upload a reference audio file", variant: "destructive" });
       return;
     }
-    
+  
     try {
-      const audioBase64 = await fileToBase64(audioFile);
-      generateMutation.mutate({ ...values, audioBase64 });
+      const formData = new FormData();
+      formData.append('audio', audioFile);
+      formData.append('model', values.language === 'english' ? 'F5-TTS' : 'F5-TTS-small');
+      formData.append('ref_text', values.referenceText || '');
+      formData.append('gen_text', values.generationText);
+      formData.append('speed', values.speed.toString());
+      
+      // Additional parameters (defaults inspired by the Gradio UI)
+      formData.append('remove_silence', 'false');  // Default: do not remove silences
+      formData.append('nfe_step', '32');             // Default denoising steps
+      formData.append('cross_fade_duration', '0.15');  // Default cross-fade duration
+      
+      generateMutation.mutate(formData);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to process audio file",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to process request", variant: "destructive" });
     }
   };
 
@@ -175,7 +176,7 @@ export default function VoiceCloning() {
       </h1>
       
       <p className="text-center text-gray-400 mb-10 max-w-2xl mx-auto">
-        Clone any voice with our advanced F5-TTS technology. Upload a reference audio, provide the text, and generate speech in the same voice.
+        Clone any voice with our advanced technology. Upload a reference audio, provide the text, and generate speech in the same voice.
       </p>
 
       {!generatedAudioUrl ? (
@@ -207,7 +208,7 @@ export default function VoiceCloning() {
                             <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
                               <span className={`w-2 h-2 rounded-full ${field.value === "english" ? "bg-[#6C63FF]" : ""}`}></span>
                             </span>
-                            English (F5-TTS)
+                            English
                           </div>
                         </button>
                         <button 
@@ -226,7 +227,7 @@ export default function VoiceCloning() {
                             <span className={`w-4 h-4 mr-2 rounded-full border-2 border-[#6C63FF] flex items-center justify-center`}>
                               <span className={`w-2 h-2 rounded-full ${field.value === "hindi" ? "bg-[#6C63FF]" : ""}`}></span>
                             </span>
-                            Hindi (F5-TTS-small)
+                            Hindi
                           </div>
                         </button>
                       </div>
@@ -241,7 +242,7 @@ export default function VoiceCloning() {
                   onFileChange={handleFileChange} 
                   accept="audio/*"
                   label="Upload Reference Audio"
-                  sublabel="Upload a clear voice sample (max 15 seconds)"
+                  sublabel="Upload a clear voice sample"
                 />
                 
                 {audioPreviewVisible && (
@@ -391,7 +392,7 @@ export default function VoiceCloning() {
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-t-[#6C63FF] border-r-[#00D1FF] border-b-[#6C63FF] border-l-[#00D1FF] rounded-full animate-spin mx-auto"></div>
             <p className="mt-4 font-orbitron text-xl">Processing...</p>
-            <p className="text-gray-400 mt-2">Generating voice with F5-TTS model</p>
+            <p className="text-gray-400 mt-2">Generating voice</p>
           </div>
         </div>
       )}

@@ -1,169 +1,61 @@
+// server/tts-service.ts
 import { exec } from "child_process";
-import { promisify } from "util";
 import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
+import util from "util";
 
-const execAsync = promisify(exec);
 
-// Get current file directory in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const execPromise = util.promisify(exec);
 
-export interface CloneVoiceParams {
+interface CloneVoiceParams {
   audioFilePath: string;
-  referenceText: string;
+  language: string;
   generationText: string;
-  language: "english" | "hindi";
   speed: number;
-  outputPath: string;
-}
-
-export interface CloneVoiceResult {
-  success: boolean;
-  error?: string;
-  outputPath?: string;
+  referenceText?: string;
 }
 
 export class TtsService {
+  /**
+   * cloneVoice executes the f5-tts_infer-cli command with the provided parameters.
+   * It uses the --output_dir and --output_file flags to specify where the generated file is saved.
+   */
   async cloneVoice({
     audioFilePath,
-    referenceText,
-    generationText,
     language,
+    generationText,
     speed,
-    outputPath,
-  }: CloneVoiceParams): Promise<CloneVoiceResult> {
+    referenceText = "",
+  }: CloneVoiceParams): Promise<{ success: boolean; error?: string; outputPath?: string }> {
     try {
-      // Determine the model and parameters based on language
-      const model = language === "english" ? "F5-TTS" : "F5-TTS-small";
-      const nfeSteps = 32; // Default number of denoising steps
+      // Select the model based on language:
+      // If language is Hindi, use "F5-TTS-small", otherwise "F5TTS_v1_Base"
+      const model = language.toLowerCase() === "hindi" ? "F5-TTS-small" : "F5-TTS";
+      const cleanRefText = referenceText.replace(/\n/g, " ").trim();
+      const cleanGenText = generationText.replace(/\n/g, " ").trim();
+
+      // Build the command string.
+      // Note: if any parameter might include quotes or special characters, additional escaping might be necessary.
+      const cmd = `f5-tts_infer-cli --model "${model}" --ref_audio "${audioFilePath}" --gen_text "${cleanGenText}" --ref_text "${cleanRefText}" --speed "${speed}"`;
+
+      console.log("Executing command:", cmd);
+
+      // Execute the command with environment variable set for UTF-8 encoding
+      const { stdout, stderr } = await execPromise(cmd, {
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      });
       
-      // Configure vocoder based on model
-      const vocoder = "vocos"; // Default vocoder
-      
-      // Build the command
-      let command = `f5-tts_infer-cli --model ${model}`;
-      command += ` --ref_audio "${audioFilePath}"`;
-      
-      // Reference text is required for Hindi
-      if (language === "hindi" || (referenceText && referenceText.trim() !== "")) {
-        command += ` --ref_text "${referenceText.trim()}"`;
+      console.log("Command stdout:", stdout);
+      if (stderr) {
+        console.error("Command stderr:", stderr);
       }
       
-      // Add generation text
-      command += ` --gen_text "${generationText}"`;
+      // Construct the output path
+      const outputPath ="C:\\Users\\jigya\\OneDrive\\Desktop\\Jigyasu\\voice generator\\hindi\\VoiceCloneCLI\\VoiceCloneCLI\\tests\\infer_cli_out.wav";
       
-      // Add speed parameter
-      command += ` --speed ${speed}`;
-      
-      // Add additional parameters
-      command += ` --nfe ${nfeSteps}`;
-      command += ` --vocoder_name ${vocoder}`;
-      
-      // Set the output path
-      command += ` -o "${path.dirname(outputPath)}"`;
-      command += ` -w "${path.basename(outputPath)}"`;
-      
-      // Set remove silence option
-      command += ` --remove_silence true`;
-      
-      console.log(`Executing command: ${command}`);
-      
-      // Execute the command
-      const { stdout, stderr } = await execAsync(command);
-      
-      if (stderr && !fs.existsSync(outputPath)) {
-        console.error("Error in TTS command:", stderr);
-        return { 
-          success: false, 
-          error: `Failed to generate audio: ${stderr}` 
-        };
-      }
-      
-      // Properly handle and process the output
-      if (fs.existsSync(outputPath)) {
-        console.log(`Generated audio file saved at: ${outputPath}`);
-        
-        // Check file size to ensure it's a valid audio file
-        const stats = fs.statSync(outputPath);
-        if (stats.size === 0) {
-          return {
-            success: false,
-            error: "Generated file is empty"
-          };
-        }
-        
-        return { 
-          success: true,
-          outputPath
-        };
-      }
-      
-      return {
-        success: false,
-        error: "Output file was not created"
-      };
+      return { success: true, outputPath };
     } catch (error) {
-      console.error("TTS service error:", error);
-      
-      // For demo purposes, if we can't run the actual command
-      // Generate a demo audio file as a placeholder
-      const shouldUseDemoMode = true; // Always fallback to demo mode for now
-      
-      if (shouldUseDemoMode) {
-        try {
-          // Create a simple sine wave as a fallback audio
-          // This simulates a generated voice output
-          await this.generateDemoAudio(outputPath, language);
-          
-          if (fs.existsSync(outputPath)) {
-            return { success: true, outputPath };
-          }
-        } catch (demoError) {
-          console.error("Failed to create demo audio:", demoError);
-        }
-      }
-      
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
-      };
-    }
-  }
-  
-  /**
-   * Generates a demo audio file when the actual F5-TTS command can't be run
-   * This is a fallback for development and testing only
-   */
-  private async generateDemoAudio(outputPath: string, language: string): Promise<void> {
-    // For demo purposes, copy a sample audio file if available
-    const sampleFileName = language === "english" ? "sample_english.wav" : "sample_hindi.wav";
-    const samplePath = path.join(__dirname, "outputs", sampleFileName);
-    
-    // If a sample exists, use it
-    if (fs.existsSync(samplePath)) {
-      fs.copyFileSync(samplePath, outputPath);
-      return;
-    }
-    
-    // Create the outputs directory if it doesn't exist
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-    
-    // Generate a simple beep tone as a last resort
-    // Note: In a production environment, you would use a real TTS service
-    const demoCmd = `ffmpeg -f lavfi -i "sine=frequency=440:duration=3" "${outputPath}"`;
-    
-    try {
-      await execAsync(demoCmd);
-    } catch (error) {
-      // If even ffmpeg fails, create an empty file
-      fs.writeFileSync(outputPath, "");
-      throw new Error("Failed to generate demo audio file");
+      console.error("TTS Service error:", error);
+      return { success: false, error: (error as Error).message };
     }
   }
 }
