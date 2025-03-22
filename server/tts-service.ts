@@ -50,7 +50,7 @@ export class TtsService {
       }
       
       // Construct the output path
-      const outputPath ="C:\\Users\\jigya\\OneDrive\\Desktop\\Jigyasu\\voice generator\\hindi\\VoiceCloneCLI\\VoiceCloneCLI\\tests\\infer_cli_out.wav";
+      const outputPath ="tests\\infer_cli_out.wav";
       
       return { success: true, outputPath };
     } catch (error) {
