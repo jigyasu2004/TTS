@@ -70,5 +70,14 @@ Follow these steps to set up and run the TTS project:
 ### 1. Clone the Repositories
 
 ```bash
-git clone https://github.com/jigyasu2004/TTS.git
 git clone https://github.com/rumourscape/F5-TTS.git
+cd F5-TTS
+pip install -e .
+cd ..
+
+pip install -q kokoro>=0.9.2 soundfile
+
+git clone https://github.com/jigyasu2004/TTS.git
+cd TTS
+npm install
+npm run dev
